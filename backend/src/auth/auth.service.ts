@@ -24,6 +24,7 @@ export class AuthService {
       id: randomUUID(),
       email,
       passwordHash: hash,
+      provider: "local",
       isActive: true,
       createdAt: new Date(),
     };
@@ -43,6 +44,46 @@ export class AuthService {
     return user;
   }
 
+  async validateOAuthUser(profile: {
+    email: string;
+    firstName: string;
+    lastName: string;
+    picture: string;
+    provider: string;
+    providerId: string;
+  }): Promise<User> {
+    // Check if user already exists by email or providerId
+    let user = this.users.find(
+      (u) =>
+        u.email === profile.email ||
+        (u.providerId === profile.providerId &&
+          u.provider === profile.provider),
+    );
+
+    if (!user) {
+      // Create new user from OAuth profile
+      user = {
+        id: randomUUID(),
+        email: profile.email,
+        firstName: profile.firstName,
+        lastName: profile.lastName,
+        picture: profile.picture,
+        provider: profile.provider as "local" | "google",
+        providerId: profile.providerId,
+        isActive: true,
+        createdAt: new Date(),
+      };
+      this.users.push(user);
+    } else {
+      // Update existing user with latest OAuth info
+      user.firstName = profile.firstName;
+      user.lastName = profile.lastName;
+      user.picture = profile.picture;
+    }
+
+    return user;
+  }
+
   async login(user: User) {
     const payload = {
       sub: user.id,
@@ -51,6 +92,14 @@ export class AuthService {
 
     return {
       access_token: this.jwtService.sign(payload),
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        picture: user.picture,
+        provider: user.provider,
+      },
     };
   }
 }
