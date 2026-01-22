@@ -131,3 +131,35 @@
   margin-top: 12px;
   font-size: 14px;
 }
+
+/* Badge styles for providers */
+.badge {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.local {
+  background-color: #e3f2fd;
+  color: #1976d2;
+}
+
+.google {
+  background-color: #fce4ec;
+  color: #c2185b;
+}
+
+.ldap {
+  background-color: #e8f5e8;
+  color: #388e3c;
+}
+
+.providerNote {
+  display: block;
+  font-size: 14px;
+  color: #666;
+  font-weight: normal;
+  margin-top: 8px;
+}

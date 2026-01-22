@@ -6,6 +6,7 @@ import { AuthService } from "./auth.service";
 import { AuthController } from "./auth.controller";
 import { JwtStrategy } from "./jwt.strategy";
 import { GoogleStrategy } from "./strategies/google.strategy";
+import { LdapAuthStrategy } from "./strategies/ldap.strategy"; // 🆕 Added
 
 @Module({
   imports: [
@@ -14,16 +15,16 @@ import { GoogleStrategy } from "./strategies/google.strategy";
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => {
         return {
-          secret: configService.get<string>("jwt.secret"),
+          secret: configService.get<string>("jwt.secret") || '0123456789abcdef',
           signOptions: {
-            expiresIn: "15m",
+            expiresIn: '15m',
           },
         };
       },
       inject: [ConfigService],
     }),
   ],
-  providers: [AuthService, JwtStrategy, GoogleStrategy],
+  providers: [AuthService, JwtStrategy, GoogleStrategy, LdapAuthStrategy], // 🆕 Added LdapAuthStrategy
   controllers: [AuthController],
 })
 export class AuthModule {}

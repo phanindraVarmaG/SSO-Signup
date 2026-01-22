@@ -15,11 +15,12 @@ import {
   ApiBearerAuth,
 } from "@nestjs/swagger";
 import { AuthGuard } from "@nestjs/passport";
-import { ConfigService } from "@nestjs/config";
-import { AuthService } from "./auth.service";
-import { RegisterDto } from "./dto/register.dto";
-import { LoginDto } from "./dto/login.dto";
 import { Response } from "express";
+import { AuthService } from "./auth.service";
+import { ConfigService } from "@nestjs/config";
+import { LoginDto } from "./dto/login.dto";
+import { RegisterDto } from "./dto/register.dto";
+import { LdapLoginDto } from "./dto/ldap-login.dto";
 
 @ApiTags("auth")
 @Controller("auth")
@@ -73,6 +74,20 @@ export class AuthController {
     // Redirect to frontend with token
     const frontendUrl = this.configService.get<string>("frontend.url");
     res.redirect(`${frontendUrl}/auth/callback?token=${access_token}`);
+  }
+
+  // 🆕 LDAP Authentication Endpoints
+  @Post("ldap")
+  @UseGuards(AuthGuard("ldap"))
+  @ApiOperation({ summary: "Login with LDAP credentials" })
+  @ApiBody({ type: LdapLoginDto })
+  @ApiResponse({ status: 200, description: "LDAP login successful" })
+  @ApiResponse({ status: 401, description: "Invalid LDAP credentials" })
+  async ldapLogin(@Body() ldapLoginDto: LdapLoginDto, @Request() req) {
+    // The guard has already validated LDAP credentials
+    // req.user contains the validated LDAP user
+    const { access_token } = await this.authService.login(req.user);
+    return { access_token, user: req.user };
   }
 
   @UseGuards(AuthGuard("jwt"))

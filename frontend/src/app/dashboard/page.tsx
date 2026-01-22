@@ -7,6 +7,11 @@ import styles from "./dashboard.module.css";
 interface UserProfile {
   userId: string;
   email: string;
+  username?: string;
+  provider?: string;
+  displayName?: string;
+  department?: string;
+  title?: string;
 }
 
 export default function DashboardPage() {
@@ -101,10 +106,54 @@ export default function DashboardPage() {
               <span className={styles.label}>Email:</span>
               <span className={styles.value}>{user?.email}</span>
             </div>
+
+            {user?.username && (
+              <div className={styles.infoRow}>
+                <span className={styles.label}>Username:</span>
+                <span className={styles.value}>{user.username}</span>
+              </div>
+            )}
+
+            {user?.provider && (
+              <div className={styles.infoRow}>
+                <span className={styles.label}>Provider:</span>
+                <span className={styles.value}>
+                  <span className={`${styles.badge} ${styles[user.provider.toLowerCase()]}`}>
+                    {user.provider.toUpperCase()}
+                  </span>
+                </span>
+              </div>
+            )}
+
+            {user?.displayName && (
+              <div className={styles.infoRow}>
+                <span className={styles.label}>Display Name:</span>
+                <span className={styles.value}>{user.displayName}</span>
+              </div>
+            )}
+
+            {user?.department && (
+              <div className={styles.infoRow}>
+                <span className={styles.label}>Department:</span>
+                <span className={styles.value}>{user.department}</span>
+              </div>
+            )}
+
+            {user?.title && (
+              <div className={styles.infoRow}>
+                <span className={styles.label}>Title:</span>
+                <span className={styles.value}>{user.title}</span>
+              </div>
+            )}
           </div>
 
           <div className={styles.welcomeMessage}>
-            Welcome back, <strong>{user?.email}</strong>!
+            Welcome back, <strong>{user?.displayName || user?.email}</strong>!
+            {user?.provider === 'ldap' && (
+              <span className={styles.providerNote}>
+                (Authenticated via LDAP)
+              </span>
+            )}
           </div>
         </div>
       </div>

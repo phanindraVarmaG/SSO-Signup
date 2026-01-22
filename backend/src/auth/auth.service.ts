@@ -19,7 +19,7 @@ export class AuthService {
     }
 
     const hash = await bcrypt.hash(password, 10);
-
+    
     const user: User = {
       id: randomUUID(),
       email,
@@ -30,7 +30,6 @@ export class AuthService {
     };
 
     this.users.push(user);
-
     return { id: user.id, email: user.email };
   }
 
@@ -68,7 +67,7 @@ export class AuthService {
         firstName: profile.firstName,
         lastName: profile.lastName,
         picture: profile.picture,
-        provider: profile.provider as "local" | "google",
+        provider: profile.provider as "local" | "google" | "ldap",
         providerId: profile.providerId,
         isActive: true,
         createdAt: new Date(),
@@ -79,6 +78,55 @@ export class AuthService {
       user.firstName = profile.firstName;
       user.lastName = profile.lastName;
       user.picture = profile.picture;
+    }
+
+    return user;
+  }
+
+  // 🆕 New method for LDAP user validation
+  async validateLdapUser(profile: {
+    email: string;
+    firstName: string;
+    lastName: string;
+    username: string;
+    displayName: string;
+    provider: string;
+    providerId: string;
+    department?: string;
+    title?: string;
+  }): Promise<User> {
+    // Check if user exists by email, username, or providerId
+    let user = this.users.find(
+      (u) =>
+        u.email === profile.email ||
+        u.username === profile.username ||
+        (u.providerId === profile.providerId && u.provider === profile.provider),
+    );
+
+    if (!user) {
+      // Create new user from LDAP profile
+      user = {
+        id: randomUUID(),
+        email: profile.email,
+        firstName: profile.firstName,
+        lastName: profile.lastName,
+        username: profile.username,
+        displayName: profile.displayName,
+        provider: profile.provider as "local" | "google" | "ldap",
+        providerId: profile.providerId,
+        department: profile.department,
+        title: profile.title,
+        isActive: true,
+        createdAt: new Date(),
+      };
+      this.users.push(user);
+    } else {
+      // Update existing user with latest LDAP info
+      user.firstName = profile.firstName;
+      user.lastName = profile.lastName;
+      user.displayName = profile.displayName;
+      user.department = profile.department;
+      user.title = profile.title;
     }
 
     return user;
@@ -97,8 +145,12 @@ export class AuthService {
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
+        username: user.username,
+        displayName: user.displayName,
         picture: user.picture,
         provider: user.provider,
+        department: user.department,
+        title: user.title,
       },
     };
   }

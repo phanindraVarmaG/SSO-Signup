@@ -9,6 +9,9 @@ export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [ldapUsername, setLdapUsername] = useState("");
+  const [ldapPassword, setLdapPassword] = useState("");
+  const [loginMode, setLoginMode] = useState<"email" | "ldap">("email");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -18,13 +21,28 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:4000/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
-      });
+      let response;
+      
+      if (loginMode === "ldap") {
+        response = await fetch("http://localhost:4000/auth/ldap", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ 
+            username: ldapUsername, 
+            password: ldapPassword 
+          }),
+        });
+      } else {
+        response = await fetch("http://localhost:4000/auth/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ email, password }),
+        });
+      }
 
       const data = await response.json();
 
@@ -89,47 +107,113 @@ export default function LoginPage() {
           <span className={styles.dividerText}>OR</span>
         </div>
 
-        <form onSubmit={handleSubmit} className={styles.form}>
-          <div className={styles.formGroup}>
-            <label htmlFor="email" className={styles.label}>
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className={styles.input}
-              placeholder="Enter your email"
-              required
-            />
-          </div>
+        {/* Login Mode Toggle */}
+        <div className={styles.toggleContainer}>
+          <button
+            type="button"
+            className={`${styles.toggleButton} ${
+              loginMode === "email" ? styles.toggleActive : ""
+            }`}
+            onClick={() => setLoginMode("email")}
+          >
+            Email Login
+          </button>
+          <button
+            type="button"
+            className={`${styles.toggleButton} ${
+              loginMode === "ldap" ? styles.toggleActive : ""
+            }`}
+            onClick={() => setLoginMode("ldap")}
+          >
+            LDAP Login
+          </button>
+        </div>
 
-          <div className={styles.formGroup}>
-            <label htmlFor="password" className={styles.label}>
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className={styles.input}
-              placeholder="Enter your password"
-              required
-            />
-          </div>
+        <form onSubmit={handleSubmit} className={styles.form}>
+          {loginMode === "email" ? (
+            <>
+              <div className={styles.formGroup}>
+                <label htmlFor="email" className={styles.label}>
+                  Email
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className={styles.input}
+                  placeholder="Enter your email"
+                  required
+                />
+              </div>
+
+              <div className={styles.formGroup}>
+                <label htmlFor="password" className={styles.label}>
+                  Password
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className={styles.input}
+                  placeholder="Enter your password"
+                  required
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              <div className={styles.formGroup}>
+                <label htmlFor="ldapUsername" className={styles.label}>
+                  Username
+                </label>
+                <input
+                  id="ldapUsername"
+                  type="text"
+                  value={ldapUsername}
+                  onChange={(e) => setLdapUsername(e.target.value)}
+                  className={styles.input}
+                  placeholder="Enter your domain username"
+                  required
+                />
+              </div>
+
+              <div className={styles.formGroup}>
+                <label htmlFor="ldapPassword" className={styles.label}>
+                  Password
+                </label>
+                <input
+                  id="ldapPassword"
+                  type="password"
+                  value={ldapPassword}
+                  onChange={(e) => setLdapPassword(e.target.value)}
+                  className={styles.input}
+                  placeholder="Enter your domain password"
+                  required
+                />
+              </div>
+            </>
+          )}
 
           {error && <div className={styles.error}>{error}</div>}
 
           <button type="submit" className={styles.button} disabled={loading}>
-            {loading ? "Logging in..." : "Login"}
+            {loading 
+              ? "Logging in..." 
+              : loginMode === "email" 
+                ? "Login with Email" 
+                : "Login with LDAP"
+            }
           </button>
         </form>
 
         <p className={styles.link}>
           Don't have an account? <Link href="/register">Register here</Link>
         </p>
+        {/* <p className={styles.link}>
+          Enterprise user? <Link href="/ldap">LDAP Login</Link>
+        </p> */}
       </div>
     </div>
   );
