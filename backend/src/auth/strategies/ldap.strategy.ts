@@ -3,6 +3,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { Strategy as LocalStrategy } from 'passport-local';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from '../auth.service';
+import { mockLdapUsers } from '../mock-ldap-users';
 
 // Try to import LDAP strategy, fall back to local if not available
 let LdapAuthStrategy_Real;
@@ -97,55 +98,8 @@ export class LdapAuthStrategy extends PassportStrategy(LocalStrategy, 'ldap') {
   private async validateMockLdapUser(username: string, password: string) {
     console.log(`Attempting mock LDAP authentication for user: ${username}`);
     
-    // Mock user data for development testing and fallback
-    const mockUsers = [
-      {
-        username: 'figmadev@divami.com',
-        email: 'figmadev@divami.com',
-        firstName: 'Figma',
-        lastName: 'Developer',
-        displayName: 'Figma Developer',
-        department: 'Development',
-        title: 'Frontend Developer',
-        provider: 'ldap',
-        providerId: 'CN=Figma Developer,OU=Users,DC=divami,DC=com'
-      },
-      {
-        username: 'john.doe',
-        email: 'john.doe@company.local',
-        firstName: 'John',
-        lastName: 'Doe',
-        displayName: 'John Doe',
-        department: 'Engineering',
-        title: 'Software Engineer',
-        provider: 'ldap',
-        providerId: 'CN=John Doe,OU=Users,DC=company,DC=local'
-      },
-      {
-        username: 'admin',
-        email: 'admin@company.local',
-        firstName: 'System',
-        lastName: 'Administrator',
-        displayName: 'System Administrator',
-        department: 'IT',
-        title: 'System Administrator',
-        provider: 'ldap',
-        providerId: 'CN=System Administrator,OU=Users,DC=company,DC=local'
-      },
-      {
-        username: 'jane.smith',
-        email: 'jane.smith@divami.com',
-        firstName: 'Jane',
-        lastName: 'Smith',
-        displayName: 'Jane Smith',
-        department: 'Design',
-        title: 'UI/UX Designer',
-        provider: 'ldap',
-        providerId: 'CN=Jane Smith,OU=Users,DC=divami,DC=com'
-      }
-    ];
 
-    const mockUser = mockUsers.find(user => 
+    const mockUser = mockLdapUsers.find(user => 
       user.username === username || user.email === username
     );
 
