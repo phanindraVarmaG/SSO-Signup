@@ -4,6 +4,7 @@ import { Strategy as LocalStrategy } from 'passport-local';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from '../auth.service';
 import { mockLdapUsers } from '../mock-ldap-users';
+const LdapAuth = require('ldapauth-fork');
 
 // Try to import LDAP strategy, fall back to local if not available
 let LdapAuthStrategy_Real;
@@ -27,70 +28,72 @@ export class LdapAuthStrategy extends PassportStrategy(LocalStrategy, 'ldap') {
 
   async validate(username: string, password: string): Promise<any> {
     try {
-      // First, try real LDAP authentication
+      // Try real LDAP authentication
       const realLdapResult = await this.tryRealLdapAuthentication(username, password);
-      if (realLdapResult) {
-        return realLdapResult;
+      return realLdapResult;
+    } catch (error: any) {
+      // Always try mock fallback if LDAP fails for any reason
+      try {
+        return await this.validateMockLdapUser(username, password);
+      } catch (mockError) {
+        // If not found in mock, throw original LDAP error
+        throw new UnauthorizedException(error.message || 'LDAP authentication failed');
       }
-    } catch (error) {
-      console.log('Real LDAP authentication failed, trying fallback:', error.message);
     }
-
-    // Fallback to mock LDAP authentication
-    return this.validateMockLdapUser(username, password);
   }
 
   private async tryRealLdapAuthentication(username: string, password: string): Promise<any> {
-    if (!LdapAuthStrategy_Real) {
-      throw new Error('passport-ldapauth not available');
-    }
+    const options = {
+      url: this.configService.get<string>('ldap.url'),
+      bindDN: this.configService.get<string>('ldap.bindDN'),
+      bindCredentials: this.configService.get<string>('ldap.bindCredentials'),
+      searchBase: this.configService.get<string>('ldap.searchBase'),
+      searchFilter: this.configService.get<string>('ldap.searchFilter').replace('{{username}}', username),
+      reconnect: true,
+      timeout: 5000,
+      connectTimeout: 5000,
+    };
 
     return new Promise((resolve, reject) => {
-      const ldapConfig = {
-        server: {
-          url: this.configService.get<string>('ldap.url'),
-          bindDN: this.configService.get<string>('ldap.bindDN'),
-          bindCredentials: this.configService.get<string>('ldap.bindCredentials'),
-          searchBase: this.configService.get<string>('ldap.searchBase'),
-          searchFilter: this.configService.get<string>('ldap.searchFilter'),
-          reconnect: true,
-          connectTimeout: 5000,
-          timeout: 5000,
-        },
-      };
-
-      // Create LDAP strategy instance
-      const ldapStrategy = new LdapAuthStrategy_Real(ldapConfig, async (profile: any) => {
-        try {
-          const userProfile = {
-            email: profile.mail || profile.userPrincipalName || profile.sAMAccountName + '@company.com',
-            firstName: profile.givenName || profile.cn?.split(' ')[0] || '',
-            lastName: profile.sn || profile.cn?.split(' ').slice(1).join(' ') || '',
-            username: profile.sAMAccountName || profile.uid || username,
-            displayName: profile.displayName || profile.cn || `${profile.givenName} ${profile.sn}`,
-            provider: 'ldap',
-            providerId: profile.dn,
-            department: profile.department,
-            title: profile.title,
-          };
-
-          const validatedUser = await this.authService.validateLdapUser(userProfile);
-          console.log(`Real LDAP authentication successful for user: ${username}`);
-          resolve(validatedUser);
-        } catch (error) {
-          reject(error);
-        }
-      });
-
-      // Authenticate with LDAP
-      ldapStrategy.authenticate({ username, password }, {}, (err: any, user: any) => {
+      const ldap = new LdapAuth(options);
+      ldap.authenticate(username, password, async (err, user) => {
+        ldap.close();
         if (err) {
-          reject(new Error(`LDAP authentication error: ${err.message}`));
-        } else if (!user) {
-          reject(new Error('LDAP authentication failed - invalid credentials'));
-        } else {
-          resolve(user);
+          // Connection errors
+          if (
+            typeof err === 'object' &&
+            err !== null &&
+            'code' in err &&
+            (
+              (err as any).code === 'ECONNREFUSED' ||
+              (err as any).code === 'ETIMEDOUT' ||
+              (err as any).code === 'ENOTFOUND' ||
+              (err as any).code === 'EAI_AGAIN'
+            )
+          ) {
+            (err as any).code = 'LDAPError';
+            return reject(err);
+          }
+          // Invalid credentials
+          return reject(new UnauthorizedException('LDAP authentication failed - invalid credentials'));
         }
+        if (!user) {
+          return reject(new UnauthorizedException('LDAP authentication failed - user not found'));
+        }
+        // Map user fields as needed
+        const userProfile = {
+          email: user.mail || user.userPrincipalName || user.sAMAccountName + '@company.com',
+          firstName: user.givenName || user.cn?.split(' ')[0] || '',
+          lastName: user.sn || user.cn?.split(' ').slice(1).join(' ') || '',
+          username: user.sAMAccountName || user.uid || username,
+          displayName: user.displayName || user.cn || `${user.givenName} ${user.sn}`,
+          provider: 'ldap',
+          providerId: user.dn,
+          department: user.department,
+          title: user.title,
+        };
+        const validatedUser = await this.authService.validateLdapUser(userProfile);
+        resolve(validatedUser);
       });
     });
   }
