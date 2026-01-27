@@ -6,7 +6,8 @@ import { AuthService } from "./auth.service";
 import { AuthController } from "./auth.controller";
 import { JwtStrategy } from "./strategies/jwt.strategy";
 import { GoogleStrategy } from "./strategies/google.strategy";
-import { LdapAuthStrategy } from "./strategies/ldap.strategy"; // 🆕 Added
+import { GoogleDriveStrategy } from "./strategies/google-drive.strategy";
+import { LdapAuthStrategy } from "./strategies/ldap.strategy";
 
 @Module({
   imports: [
@@ -15,16 +16,22 @@ import { LdapAuthStrategy } from "./strategies/ldap.strategy"; // 🆕 Added
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => {
         return {
-          secret: configService.get<string>("jwt.secret") || '0123456789abcdef',
+          secret: configService.get<string>("jwt.secret") || "0123456789abcdef",
           signOptions: {
-            expiresIn: '15m',
+            expiresIn: "15m",
           },
         };
       },
       inject: [ConfigService],
     }),
   ],
-  providers: [AuthService, JwtStrategy, GoogleStrategy, LdapAuthStrategy], // 🆕 Added LdapAuthStrategy
+  providers: [
+    AuthService,
+    JwtStrategy,
+    GoogleStrategy,
+    GoogleDriveStrategy,
+    LdapAuthStrategy,
+  ],
   controllers: [AuthController],
 })
 export class AuthModule {}

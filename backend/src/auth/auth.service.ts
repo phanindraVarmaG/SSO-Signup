@@ -19,7 +19,7 @@ export class AuthService {
     }
 
     const hash = await bcrypt.hash(password, 10);
-    
+
     const user: User = {
       id: randomUUID(),
       email,
@@ -43,14 +43,27 @@ export class AuthService {
     return user;
   }
 
-  async validateOAuthUser(profile: {
-    email: string;
-    firstName: string;
-    lastName: string;
-    picture: string;
-    provider: string;
-    providerId: string;
-  }): Promise<User> {
+  async validateOAuthUser(
+    profile: {
+      email: string;
+      firstName: string;
+      lastName: string;
+      picture: string;
+      provider: string;
+      providerId: string;
+    },
+    allowedDomains?: string[],
+  ): Promise<User> {
+    // Validate email domain if restrictions are configured
+    if (allowedDomains && allowedDomains.length > 0) {
+      const emailDomain = profile.email.split("@")[1];
+      if (!allowedDomains.includes(emailDomain)) {
+        throw new UnauthorizedException(
+          `Access denied. Only emails from ${allowedDomains.join(", ")} are allowed.`,
+        );
+      }
+    }
+
     // Check if user already exists by email or providerId
     let user = this.users.find(
       (u) =>
@@ -100,7 +113,8 @@ export class AuthService {
       (u) =>
         u.email === profile.email ||
         u.username === profile.username ||
-        (u.providerId === profile.providerId && u.provider === profile.provider),
+        (u.providerId === profile.providerId &&
+          u.provider === profile.provider),
     );
 
     if (!user) {
