@@ -57,6 +57,25 @@ export default function DashboardPage() {
     }
   };
 
+  const [data, setData] = useState(null);
+  const [protectedDataError, setProtectedDataError] = useState("");
+
+  const fetchProtectedData = async () => {
+    setProtectedDataError("");
+    setData(null);
+    try {
+      const token = localStorage.getItem("access_token"); // Adjust if you store token elsewhere
+      const res = await fetch("http://localhost:4000/test/protected-data", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const result = await res.json();
+      if (res.status === 200) setData(result.data);
+      else setProtectedDataError(result.message || "Access denied");
+    } catch (e) {
+      setProtectedDataError("Error fetching data");
+    }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem("access_token");
     router.push("/login");
@@ -118,7 +137,9 @@ export default function DashboardPage() {
               <div className={styles.infoRow}>
                 <span className={styles.label}>Provider:</span>
                 <span className={styles.value}>
-                  <span className={`${styles.badge} ${styles[user.provider.toLowerCase()]}`}>
+                  <span
+                    className={`${styles.badge} ${styles[user.provider.toLowerCase()]}`}
+                  >
                     {user.provider.toUpperCase()}
                   </span>
                 </span>
@@ -149,12 +170,20 @@ export default function DashboardPage() {
 
           <div className={styles.welcomeMessage}>
             Welcome back, <strong>{user?.displayName || user?.email}</strong>!
-            {user?.provider === 'ldap' && (
+            {user?.provider === "ldap" && (
               <span className={styles.providerNote}>
                 (Authenticated via LDAP)
               </span>
             )}
           </div>
+
+          <button onClick={fetchProtectedData} className={styles.logoutButton}>
+            Show Protected Data
+          </button>
+          {data && <pre>{JSON.stringify(data, null, 2)}</pre>}
+          {protectedDataError && (
+            <p style={{ color: "red" }}>{protectedDataError}</p>
+          )}
         </div>
       </div>
     </div>

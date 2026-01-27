@@ -14,6 +14,8 @@ export default function LoginPage() {
   const [loginMode, setLoginMode] = useState<"email" | "ldap">("email");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showLdapPassword, setShowLdapPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,16 +24,16 @@ export default function LoginPage() {
 
     try {
       let response;
-      
+
       if (loginMode === "ldap") {
         response = await fetch("http://localhost:4000/auth/ldap", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ 
-            username: ldapUsername, 
-            password: ldapPassword 
+          body: JSON.stringify({
+            username: ldapUsername,
+            password: ldapPassword,
           }),
         });
       } else {
@@ -71,8 +73,6 @@ export default function LoginPage() {
     <div className={styles.container}>
       <div className={styles.card}>
         <h1 className={styles.title}>SSO Login</h1>
-
-   
 
         {/* Login Mode Toggle */}
         <div className={styles.toggleContainer}>
@@ -118,15 +118,26 @@ export default function LoginPage() {
                 <label htmlFor="password" className={styles.label}>
                   Password
                 </label>
-                <input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className={styles.input}
-                  placeholder="Enter your password"
-                  required
-                />
+                <div style={{ position: "relative", width: "100%" }}>
+                  <input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className={styles.input}
+                    placeholder="Enter your password"
+                    required
+                  />
+                  <button
+                    type="button"
+                    className={styles.inputSuffix}
+                    onClick={() => setShowPassword((v) => !v)}
+                    tabIndex={-1}
+                    title={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? "🙈" : "👁️"}
+                  </button>
+                </div>
               </div>
             </>
           ) : (
@@ -150,15 +161,26 @@ export default function LoginPage() {
                 <label htmlFor="ldapPassword" className={styles.label}>
                   Password
                 </label>
-                <input
-                  id="ldapPassword"
-                  type="password"
-                  value={ldapPassword}
-                  onChange={(e) => setLdapPassword(e.target.value)}
-                  className={styles.input}
-                  placeholder="Enter your domain password"
-                  required
-                />
+                <div style={{ position: "relative", width: "100%" }}>
+                  <input
+                    id="ldapPassword"
+                    type={showLdapPassword ? "text" : "password"}
+                    value={ldapPassword}
+                    onChange={(e) => setLdapPassword(e.target.value)}
+                    className={styles.input}
+                    placeholder="Enter your domain password"
+                    required
+                  />
+                  <button
+                    type="button"
+                    className={styles.inputSuffix}
+                    onClick={() => setShowLdapPassword((v) => !v)}
+                    tabIndex={-1}
+                    title={showLdapPassword ? "Hide password" : "Show password"}
+                  >
+                    {showLdapPassword ? "🙈" : "👁️"}
+                  </button>
+                </div>
               </div>
             </>
           )}
@@ -166,16 +188,15 @@ export default function LoginPage() {
           {error && <div className={styles.error}>{error}</div>}
 
           <button type="submit" className={styles.button} disabled={loading}>
-            {loading 
-              ? "Logging in..." 
-              : loginMode === "email" 
-                ? "Login with Email" 
-                : "Login with LDAP"
-            }
+            {loading
+              ? "Logging in..."
+              : loginMode === "email"
+                ? "Login with Email"
+                : "Login with LDAP"}
           </button>
         </form>
-     {/* Google Sign-In Button */}
-       <div className={styles.divider}>
+        {/* Google Sign-In Button */}
+        <div className={styles.divider}>
           <span className={styles.dividerText}>OR</span>
         </div>
         <button
@@ -208,7 +229,6 @@ export default function LoginPage() {
           Sign in with Google
         </button>
 
-      
         <p className={styles.link}>
           Don't have an account? <Link href="/register">Register here</Link>
         </p>
