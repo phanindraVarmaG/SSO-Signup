@@ -29,6 +29,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, "google") {
       accessToken,
       provider: "google",
       providerId: profile.id,
+      googleAccessToken: accessToken,
     };
     done(null, user);
   }

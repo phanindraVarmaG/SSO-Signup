@@ -53,3 +53,5 @@ export class TestController {
     };
   }
 }
+
+// This file is being moved to controllers/test.controller.ts

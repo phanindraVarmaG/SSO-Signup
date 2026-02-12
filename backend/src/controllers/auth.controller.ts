@@ -1,3 +1,5 @@
+// This file is being moved to controllers/auth.controller.ts
+
 import {
   Controller,
   Post,
@@ -16,11 +18,12 @@ import {
 } from "@nestjs/swagger";
 import { AuthGuard } from "@nestjs/passport";
 import { Response } from "express";
-import { AuthService } from "./auth.service";
+import { AuthService } from "../services/auth.service";
 import { ConfigService } from "@nestjs/config";
-import { LoginDto } from "./dto/login.dto";
-import { RegisterDto } from "./dto/register.dto";
-import { LdapLoginDto } from "./dto/ldap-login.dto";
+import { LoginDto } from "../auth/dto/login.dto";
+import { RegisterDto } from "../auth/dto/register.dto";
+import { LdapLoginDto } from "../auth/dto/ldap-login.dto";
+import { LdapRegisterDto } from "../auth/dto/ldap-register.dto";
 
 @ApiTags("auth")
 @Controller("auth")
@@ -65,15 +68,20 @@ export class AuthController {
   @ApiOperation({ summary: "Google OAuth callback" })
   @ApiResponse({ status: 302, description: "Redirects to frontend with token" })
   async googleAuthRedirect(@Request() req, @Res() res: Response) {
-    // Validate OAuth user and create/update in database
     const user = await this.authService.validateOAuthUser(req.user);
-
-    // Generate JWT token
     const { access_token } = await this.authService.login(user);
 
-    // Redirect to frontend with token
-    const frontendUrl = this.configService.get<string>("frontend.url");
-    res.redirect(`${frontendUrl}/auth/callback?token=${access_token}`);
+    // Get Google tokens from req.user
+    const googleAccessToken = req.user.googleAccessToken;
+    const googleIdToken = req.user.googleIdToken; // If available
+
+    // Determine redirect based on admin status
+    const redirectPath = user.isAdmin ? '/admin/about' : '/client/about';
+
+    // Redirect to appropriate portal with App JWT and Google Access Token
+    res.redirect(
+      `http://localhost:3000${redirectPath}?token=${access_token}&google_access_token=${googleAccessToken || ""}&isAdmin=${user.isAdmin || false}`
+    );
   }
 
   // 🆕 LDAP Authentication Endpoints
@@ -88,6 +96,15 @@ export class AuthController {
     // req.user contains the validated LDAP user
     const { access_token } = await this.authService.login(req.user);
     return { access_token, user: req.user };
+  }
+
+  @Post("ldap/register")
+  @ApiOperation({ summary: "Register a new LDAP user" })
+  @ApiBody({ type: LdapRegisterDto })
+  @ApiResponse({ status: 201, description: "LDAP user successfully registered" })
+  @ApiResponse({ status: 400, description: "Bad request" })
+  async ldapRegister(@Body() ldapRegisterDto: LdapRegisterDto) {
+    return this.authService.ldapRegister(ldapRegisterDto);
   }
 
   @UseGuards(AuthGuard("jwt"))

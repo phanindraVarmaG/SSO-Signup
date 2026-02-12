@@ -1,5 +1,7 @@
 import { Injectable } from "@nestjs/common";
 
+// This file is being moved to services/app.service.ts
+
 @Injectable()
 export class AppService {
   getHello(): string {

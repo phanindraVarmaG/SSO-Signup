@@ -11,6 +11,7 @@ export interface User {
   providerId?: string;
   department?: string; // Added for LDAP
   title?: string; // Added for LDAP
+  isAdmin?: boolean; // Admin access flag
   isActive: boolean;
   createdAt: Date;
 }

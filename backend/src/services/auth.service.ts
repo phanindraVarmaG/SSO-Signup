@@ -3,6 +3,10 @@ import { JwtService } from "@nestjs/jwt";
 import * as bcrypt from "bcrypt";
 import { randomUUID } from "crypto";
 import { User } from "../users/user.entity";
+import * as ldap from 'ldapjs';
+import { LdapRegisterDto } from '../auth/dto/ldap-register.dto';
+
+// This file is being moved to services/auth.service.ts
 
 @Injectable()
 export class AuthService {
@@ -25,12 +29,18 @@ export class AuthService {
       email,
       passwordHash: hash,
       provider: "local",
+      isAdmin: this.checkIfAdmin(email),
       isActive: true,
       createdAt: new Date(),
     };
 
     this.users.push(user);
     return { id: user.id, email: user.email };
+  }
+
+  // Helper method to check if user is admin
+  private checkIfAdmin(emailOrUsername: string): boolean {
+    return emailOrUsername === 'giresh@divami.com';
   }
 
   async validateUser(email: string, password: string): Promise<User> {
@@ -69,6 +79,7 @@ export class AuthService {
         picture: profile.picture,
         provider: profile.provider as "local" | "google" | "ldap",
         providerId: profile.providerId,
+        isAdmin: this.checkIfAdmin(profile.email),
         isActive: true,
         createdAt: new Date(),
       };
@@ -116,6 +127,7 @@ export class AuthService {
         providerId: profile.providerId,
         department: profile.department,
         title: profile.title,
+        isAdmin: this.checkIfAdmin(profile.email) || this.checkIfAdmin(profile.username),
         isActive: true,
         createdAt: new Date(),
       };
@@ -136,6 +148,7 @@ export class AuthService {
     const payload = {
       sub: user.id,
       email: user.email,
+      isAdmin: user.isAdmin || false,
     };
 
     return {
@@ -151,7 +164,48 @@ export class AuthService {
         provider: user.provider,
         department: user.department,
         title: user.title,
+        isAdmin: user.isAdmin || false,
       },
     };
+  }
+
+  async ldapRegister(dto: LdapRegisterDto) {
+    // Connect to LDAP server
+    const client = ldap.createClient({
+      url: process.env.LDAP_URL || 'ldap://localhost:389',
+      timeout: 5000,
+      connectTimeout: 5000,
+    });
+    const adminDN = process.env.LDAP_BIND_DN || 'cn=admin,dc=example,dc=org';
+    const adminPass = process.env.LDAP_BIND_CREDENTIALS || 'admin';
+    const baseDN = process.env.LDAP_SEARCH_BASE || 'dc=example,dc=org';
+    // Hash password using slappasswd-compatible SSHA
+    const crypto = require('crypto');
+    function ssha(password: string) {
+      const salt = crypto.randomBytes(4);
+      const hash = crypto.createHash('sha1');
+      hash.update(Buffer.from(password));
+      hash.update(salt);
+      const digest = Buffer.concat([hash.digest(), salt]);
+      return '{SSHA}' + digest.toString('base64');
+    }
+    const userDN = `uid=${dto.username},${baseDN}`;
+    const entry = {
+      objectClass: ['inetOrgPerson'],
+      uid: dto.username,
+      sn: dto.sn,
+      cn: dto.cn,
+      userPassword: ssha(dto.password),
+    };
+    return new Promise((resolve, reject) => {
+      client.bind(adminDN, adminPass, (err) => {
+        if (err) return reject({ message: 'LDAP admin bind failed', error: err.message });
+        client.add(userDN, entry, (err2) => {
+          client.unbind();
+          if (err2) return reject({ message: 'LDAP add failed', error: err2.message });
+          resolve({ message: 'LDAP user registered', dn: userDN });
+        });
+      });
+    });
   }
 }

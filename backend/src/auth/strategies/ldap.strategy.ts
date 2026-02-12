@@ -2,8 +2,8 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy as LocalStrategy } from 'passport-local';
 import { ConfigService } from '@nestjs/config';
-import { AuthService } from '../auth.service';
-import { mockLdapUsers } from '../mock-ldap-users';
+import { AuthService } from '../../services/auth.service';
+import { mockLdapUsers } from '../../users/mock-ldap-users';
 const LdapAuth = require('ldapauth-fork');
 
 // Try to import LDAP strategy, fall back to local if not available

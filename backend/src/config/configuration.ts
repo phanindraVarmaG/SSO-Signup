@@ -11,11 +11,11 @@ export default () => ({
     callbackURL: process.env.GOOGLE_CALLBACK_URL,
   },
    ldap: {
-    url: process.env.LDAP_URL || 'ldap://mock-dc.company.local:389',
-    bindDN: process.env.LDAP_BIND_DN || 'CN=AppService,OU=Service Accounts,DC=company,DC=local',
-    bindCredentials: process.env.LDAP_BIND_CREDENTIALS || 'MockServicePassword123!',
-    searchBase: process.env.LDAP_SEARCH_BASE || 'OU=Users,DC=company,DC=local',
-    searchFilter: process.env.LDAP_SEARCH_FILTER || '(sAMAccountName={{username}})',
+    url: process.env.LDAP_URL || 'ldap://localhost:389',
+    bindDN: process.env.LDAP_BIND_DN || 'cn=admin,dc=example,dc=org',
+    bindCredentials: process.env.LDAP_BIND_CREDENTIALS || 'admin',
+    searchBase: process.env.LDAP_SEARCH_BASE || 'dc=example,dc=org',
+    searchFilter: process.env.LDAP_SEARCH_FILTER || '(uid={{username}})',
   },
   frontend: {
     url: process.env.FRONTEND_URL || "http://localhost:3000",

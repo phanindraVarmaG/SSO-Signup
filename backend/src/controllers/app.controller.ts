@@ -1,6 +1,8 @@
 import { Controller, Get } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
-import { AppService } from "./app.service";
+import { AppService } from "../services/app.service";
+
+// This file is being moved to controllers/app.controller.ts
 
 @ApiTags("app")
 @Controller()

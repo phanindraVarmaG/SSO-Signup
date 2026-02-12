@@ -15,8 +15,8 @@ export default function AuthCallbackPage() {
       // Store the token
       localStorage.setItem("access_token", token);
 
-      // Redirect to dashboard
-      router.push("/dashboard");
+      // Redirect to Application 1 About page
+      router.push("admin/about");
     } else {
       setError("Authentication failed. No token received.");
       setTimeout(() => {
