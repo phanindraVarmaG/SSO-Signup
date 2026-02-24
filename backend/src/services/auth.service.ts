@@ -2,7 +2,7 @@ import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import * as bcrypt from "bcrypt";
 import { randomUUID } from "crypto";
-import { User } from "../users/user.entity";
+import { User } from "../entity/user.entity";
 import * as ldap from 'ldapjs';
 import { LdapRegisterDto } from '../auth/dto/ldap-register.dto';
 
@@ -170,40 +170,90 @@ export class AuthService {
   }
 
   async ldapRegister(dto: LdapRegisterDto) {
-    // Connect to LDAP server
+    // For AWS Directory Service, we authenticate the user and register them locally
+    // Users must be created in AWS Directory Service by IT admin first
+    
     const client = ldap.createClient({
       url: process.env.LDAP_URL || 'ldap://localhost:389',
       timeout: 5000,
       connectTimeout: 5000,
     });
-    const adminDN = process.env.LDAP_BIND_DN || 'cn=admin,dc=example,dc=org';
-    const adminPass = process.env.LDAP_BIND_CREDENTIALS || 'admin';
+
     const baseDN = process.env.LDAP_SEARCH_BASE || 'dc=example,dc=org';
-    // Hash password using slappasswd-compatible SSHA
-    const crypto = require('crypto');
-    function ssha(password: string) {
-      const salt = crypto.randomBytes(4);
-      const hash = crypto.createHash('sha1');
-      hash.update(Buffer.from(password));
-      hash.update(salt);
-      const digest = Buffer.concat([hash.digest(), salt]);
-      return '{SSHA}' + digest.toString('base64');
-    }
-    const userDN = `uid=${dto.username},${baseDN}`;
-    const entry = {
-      objectClass: ['inetOrgPerson'],
-      uid: dto.username,
-      sn: dto.sn,
-      cn: dto.cn,
-      userPassword: ssha(dto.password),
-    };
+    
+    // Try to authenticate the user with provided credentials
+    // For AWS Managed AD, try User Principal Name format first (username@domain)
+    const domain = baseDN.split(',').map(dc => dc.replace('DC=', '')).join('.');
+    const userPrincipalName = `${dto.username}@${domain}`;
+    
     return new Promise((resolve, reject) => {
-      client.bind(adminDN, adminPass, (err) => {
-        if (err) return reject({ message: 'LDAP admin bind failed', error: err.message });
-        client.add(userDN, entry, (err2) => {
+      // Try to bind as the user to verify credentials (using UPN format for AWS AD)
+      client.bind(userPrincipalName, dto.password, async (err) => {
+        if (err) {
           client.unbind();
-          if (err2) return reject({ message: 'LDAP add failed', error: err2.message });
-          resolve({ message: 'LDAP user registered', dn: userDN });
+          return reject({ 
+            message: 'LDAP authentication failed. User must exist in AWS Directory Service first.', 
+            error: err.message 
+          });
+        }
+
+        // If bind succeeds, search for user details
+        const searchFilter = `(sAMAccountName=${dto.username})`;
+        const searchOptions = {
+          scope: 'sub' as const,
+          filter: searchFilter,
+          attributes: ['mail', 'displayName', 'sAMAccountName', 'givenName', 'sn', 'department', 'title'],
+        };
+
+        client.search(baseDN, searchOptions, (searchErr, searchRes) => {
+          if (searchErr) {
+            client.unbind();
+            return reject({ message: 'LDAP search failed', error: searchErr.message });
+          }
+
+          let userEntry: any = null;
+          
+          searchRes.on('searchEntry', (entry) => {
+            userEntry = entry.object;
+          });
+
+          searchRes.on('error', (err2) => {
+            client.unbind();
+            reject({ message: 'LDAP search error', error: err2.message });
+          });
+
+          searchRes.on('end', async () => {
+            client.unbind();
+            
+            if (!userEntry) {
+              return reject({ message: 'User not found in directory' });
+            }
+
+            // Register user locally in the application
+            const userProfile = {
+              email: userEntry.mail || `${dto.username}@corp.example.local`,
+              firstName: userEntry.givenName || dto.cn.split(' ')[0],
+              lastName: userEntry.sn || dto.sn,
+              username: userEntry.sAMAccountName || dto.username,
+              displayName: userEntry.displayName || dto.cn,
+              provider: 'ldap',
+              providerId: userEntry.sAMAccountName || dto.username,
+              department: userEntry.department,
+              title: userEntry.title,
+            };
+
+            const user = await this.validateLdapUser(userProfile);
+            
+            resolve({ 
+              message: 'User registered successfully in application',
+              user: {
+                id: user.id,
+                email: user.email,
+                username: user.username,
+                displayName: user.displayName,
+              }
+            });
+          });
         });
       });
     });
