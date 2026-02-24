@@ -170,92 +170,128 @@ export class AuthService {
   }
 
   async ldapRegister(dto: LdapRegisterDto) {
-    // For AWS Directory Service, we authenticate the user and register them locally
-    // Users must be created in AWS Directory Service by IT admin first
+    // Create user in AWS Directory Service using admin credentials
+    // Users are created via LDAP using the admin bind account
     
     const client = ldap.createClient({
       url: process.env.LDAP_URL || 'ldap://localhost:389',
-      timeout: 5000,
-      connectTimeout: 5000,
+      timeout: 10000,
+      connectTimeout: 10000,
     });
 
+    const adminDN = process.env.LDAP_BIND_DN || 'CN=Admin,OU=Users,OU=corp,DC=corp,DC=example,DC=local';
+    const adminPassword = process.env.LDAP_BIND_CREDENTIALS || 'admin';
     const baseDN = process.env.LDAP_SEARCH_BASE || 'dc=example,dc=org';
     
-    // Try to authenticate the user with provided credentials
-    // For AWS Managed AD, try User Principal Name format first (username@domain)
-    const domain = baseDN.split(',').map(dc => dc.replace('DC=', '')).join('.');
-    const userPrincipalName = `${dto.username}@${domain}`;
+    // For AWS Managed AD, users are typically created under CN=Users
+    const userDN = `CN=${dto.cn},CN=Users,${baseDN}`;
+    
+    // Create user entry for Microsoft Active Directory
+    const entry = {
+      objectClass: ['top', 'person', 'organizationalPerson', 'user'],
+      cn: dto.cn,
+      sn: dto.sn,
+      givenName: dto.cn.split(' ')[0] || dto.username,
+      displayName: dto.cn,
+      sAMAccountName: dto.username,
+      userPrincipalName: `${dto.username}@${baseDN.split(',').map(dc => dc.replace('DC=', '')).join('.')}`,
+      unicodePwd: this.encodePasswordForAD(dto.password),
+      userAccountControl: '512', // Normal account, enabled
+    };
     
     return new Promise((resolve, reject) => {
-      // Try to bind as the user to verify credentials (using UPN format for AWS AD)
-      client.bind(userPrincipalName, dto.password, async (err) => {
-        if (err) {
+      // Bind as admin to create the user
+      client.bind(adminDN, adminPassword, (bindErr) => {
+        if (bindErr) {
           client.unbind();
           return reject({ 
-            message: 'LDAP authentication failed. User must exist in AWS Directory Service first.', 
-            error: err.message 
+            message: 'LDAP admin authentication failed. Check LDAP_BIND_DN and LDAP_BIND_CREDENTIALS.', 
+            error: bindErr.message 
           });
         }
 
-        // If bind succeeds, search for user details
-        const searchFilter = `(sAMAccountName=${dto.username})`;
-        const searchOptions = {
-          scope: 'sub' as const,
-          filter: searchFilter,
-          attributes: ['mail', 'displayName', 'sAMAccountName', 'givenName', 'sn', 'department', 'title'],
-        };
-
-        client.search(baseDN, searchOptions, (searchErr, searchRes) => {
-          if (searchErr) {
+        // Add the new user
+        client.add(userDN, entry, (addErr) => {
+          if (addErr) {
             client.unbind();
-            return reject({ message: 'LDAP search failed', error: searchErr.message });
+            return reject({ 
+              message: 'Failed to create user in AWS Directory Service.', 
+              error: addErr.message,
+              details: 'Ensure the admin account has permissions to create users.'
+            });
           }
 
-          let userEntry: any = null;
-          
-          searchRes.on('searchEntry', (entry) => {
-            userEntry = entry.object;
-          });
+          // After creating user, fetch their details
+          const searchFilter = `(sAMAccountName=${dto.username})`;
+          const searchOptions = {
+            scope: 'sub' as const,
+            filter: searchFilter,
+            attributes: ['mail', 'displayName', 'sAMAccountName', 'givenName', 'sn', 'userPrincipalName'],
+          };
 
-          searchRes.on('error', (err2) => {
-            client.unbind();
-            reject({ message: 'LDAP search error', error: err2.message });
-          });
-
-          searchRes.on('end', async () => {
-            client.unbind();
-            
-            if (!userEntry) {
-              return reject({ message: 'User not found in directory' });
+          client.search(baseDN, searchOptions, (searchErr, searchRes) => {
+            if (searchErr) {
+              client.unbind();
+              return reject({ message: 'User created but search failed', error: searchErr.message });
             }
 
-            // Register user locally in the application
-            const userProfile = {
-              email: userEntry.mail || `${dto.username}@corp.example.local`,
-              firstName: userEntry.givenName || dto.cn.split(' ')[0],
-              lastName: userEntry.sn || dto.sn,
-              username: userEntry.sAMAccountName || dto.username,
-              displayName: userEntry.displayName || dto.cn,
-              provider: 'ldap',
-              providerId: userEntry.sAMAccountName || dto.username,
-              department: userEntry.department,
-              title: userEntry.title,
-            };
+            let userEntry: any = null;
 
-            const user = await this.validateLdapUser(userProfile);
-            
-            resolve({ 
-              message: 'User registered successfully in application',
-              user: {
-                id: user.id,
-                email: user.email,
-                username: user.username,
-                displayName: user.displayName,
+            searchRes.on('searchEntry', (entry) => {
+              userEntry = (entry as any).object;
+            });
+
+            searchRes.on('error', (err2) => {
+              client.unbind();
+              reject({ message: 'LDAP search error', error: err2.message });
+            });
+
+            searchRes.on('end', async () => {
+              client.unbind();
+
+              if (!userEntry) {
+                return resolve({ 
+                  message: 'User created successfully in AWS Directory Service',
+                  dn: userDN,
+                  username: dto.username
+                });
               }
+
+              // Register user locally in the application
+              const userProfile = {
+                email: userEntry.mail || userEntry.userPrincipalName || `${dto.username}@corp.example.local`,
+                firstName: userEntry.givenName || dto.cn.split(' ')[0],
+                lastName: userEntry.sn || dto.sn,
+                username: userEntry.sAMAccountName || dto.username,
+                displayName: userEntry.displayName || dto.cn,
+                provider: 'ldap',
+                providerId: userEntry.sAMAccountName || dto.username,
+                department: userEntry.department,
+                title: userEntry.title,
+              };
+
+              const user = await this.validateLdapUser(userProfile);
+
+              resolve({
+                message: 'User created successfully in AWS Directory Service and registered in application',
+                user: {
+                  id: user.id,
+                  email: user.email,
+                  username: user.username,
+                  displayName: user.displayName,
+                }
+              });
             });
           });
         });
       });
     });
+  }
+
+  // Helper method to encode password for Active Directory
+  private encodePasswordForAD(password: string): string {
+    // AD requires password to be enclosed in quotes and UTF-16LE encoded
+    const passwordWithQuotes = `"${password}"`;
+    return Buffer.from(passwordWithQuotes, 'utf16le').toString();
   }
 }
