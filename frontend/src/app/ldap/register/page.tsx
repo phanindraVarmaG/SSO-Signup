@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import styles from "../../register/register.module.css";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+
 export default function LdapRegisterPage() {
   const router = useRouter();
   const [username, setUsername] = useState("");
@@ -22,7 +24,7 @@ export default function LdapRegisterPage() {
     setSuccess(false);
 
     try {
-      const response = await fetch("http://localhost:4000/auth/ldap/register", {
+      const response = await fetch(`${API_URL}/auth/ldap/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

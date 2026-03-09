@@ -17,6 +17,12 @@ export default () => ({
     searchBase: process.env.LDAP_SEARCH_BASE || 'dc=example,dc=org',
     searchFilter: process.env.LDAP_SEARCH_FILTER || '(uid={{username}})',
   },
+  microsoft: {
+    clientID: process.env.MICROSOFT_CLIENT_ID,
+    clientSecret: process.env.MICROSOFT_CLIENT_SECRET,
+    callbackURL: process.env.MICROSOFT_CALLBACK_URL,
+    tenantID: process.env.MICROSOFT_TENANT_ID,
+  },
   frontend: {
     url: process.env.FRONTEND_URL || "http://localhost:3000",
   },

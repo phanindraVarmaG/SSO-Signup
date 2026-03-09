@@ -87,6 +87,36 @@
   border-color: #4285F4;
 }
 
+/* Microsoft OAuth button */
+.microsoftButton {
+  background: white;
+  border: 2px solid #2F2F2F;
+  color: #2F2F2F;
+  box-shadow: 0 2px 8px rgba(47, 47, 47, 0.08);
+  width: 100%;
+  padding: 14px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.microsoftButton:hover {
+  background: #f8f8f8;
+  border-color: #1a1a1a;
+  box-shadow: 0 3px 12px rgba(47, 47, 47, 0.15);
+}
+
+.microsoftIcon {
+  width: 20px;
+  height: 20px;
+}
+
 .googleButton:hover {
   background: #f8f9fa;
   border-color: #d0d0d0;

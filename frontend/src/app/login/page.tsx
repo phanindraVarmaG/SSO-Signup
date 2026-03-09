@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import styles from "./login.module.css";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -25,7 +27,7 @@ export default function LoginPage() {
     try {
       let response;
       if (loginMode === "ldap") {
-        response = await fetch("http://localhost:4000/auth/ldap", {
+        response = await fetch(`${API_URL}/auth/ldap`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -36,7 +38,7 @@ export default function LoginPage() {
           }),
         });
       } else {
-        response = await fetch("http://localhost:4000/auth/login", {
+        response = await fetch(`${API_URL}/auth/login`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -53,12 +55,9 @@ export default function LoginPage() {
       
       const params = new URLSearchParams(window.location.search);
       let redirect = params.get("redirect");
-      
-      // If no redirect specified, send admins to admin portal, others to client portal
       if (!redirect) {
         redirect = data.user?.isAdmin ? "/admin/about" : "/client/about";
       } else if (redirect.includes("/admin") && !data.user?.isAdmin) {
-        // Non-admin users trying to access admin portal, redirect to client
         redirect = "/client/about";
       }
       
@@ -71,11 +70,15 @@ export default function LoginPage() {
   };
 
   const handleGoogleLogin = () => {
-    // Get intended redirect from URL (if any)
     const params = new URLSearchParams(window.location.search);
     const redirect = params.get("redirect") || "admin/about";
-    // Redirect to backend Google OAuth endpoint with redirect param
-    window.location.href = `http://localhost:4000/auth/google?redirect=${encodeURIComponent(redirect)}`;
+    window.location.href = `${API_URL}/auth/google?redirect=${encodeURIComponent(redirect)}`;
+  };
+
+  const handleMicrosoftLogin = () => {
+    const params = new URLSearchParams(window.location.search);
+    const redirect = params.get("redirect") || "admin/about";
+    window.location.href = `${API_URL}/auth/microsoft?redirect=${encodeURIComponent(redirect)}`;
   };
 
   return (
@@ -214,13 +217,13 @@ export default function LoginPage() {
 
           {error && <div className={styles.error}>{error}</div>}
 
-          <button type="submit" className={styles.button} disabled={loading}>
+        <button type="submit" className={styles.button} disabled={loading}>
             {loading
               ? "Logging in..."
               : loginMode === "email"
                 ? "Login with Email"
                 : "Login with LDAP"}
-          </button>
+        </button>
         </form>
         {/* Google Sign-In Button */}
         <div className={styles.divider}>
@@ -256,7 +259,7 @@ export default function LoginPage() {
           Sign in with Google
         </button>
         <button
-          onClick={() => window.location.href = "http://localhost:4000/auth/google-drive-gmail"}
+          onClick={() => window.location.href = `${API_URL}/auth/google-drive-gmail`}
           className={styles.googleDriveButton}
           type="button"
           style={{ marginTop: "1rem" }}
@@ -285,16 +288,34 @@ export default function LoginPage() {
           </svg>
           Login with Google for Drive Access
         </button>
-
+        <button
+          onClick={handleMicrosoftLogin}
+          className={styles.microsoftButton}
+          type="button"
+          style={{ marginTop: '1rem' }}
+        >
+          <svg 
+            className={styles.microsoftIcon}
+            viewBox="0 0 23 23" 
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path fill="#f3f3f3" d="M0 0h23v23H0z"/>
+            <path fill="#f35325" d="M1 1h10v10H1z"/>
+            <path fill="#81bc06" d="M12 1h10v10H12z"/>
+            <path fill="#05a6f0" d="M1 12h10v10H1z"/>
+            <path fill="#ffba08" d="M12 12h10v10H12z"/>
+          </svg>
+          Sign in with Microsoft
+        </button>
         <p className={styles.link}>
           Don't have an account? <Link href="/register">Register here</Link>
         </p>
         {/* <p className={styles.link}>
           Enterprise user? <Link href="/ldap">LDAP Login</Link>
         </p> */}
-        <p className={styles.link}>
+        {/* <p className={styles.link}>
           Want an enterprise account? <Link href="/ldap/register">Register LDAP User</Link>
-        </p>
+        </p> */}
       </div>
     </div>
   );

@@ -7,7 +7,7 @@ export interface User {
   displayName?: string; // Added for LDAP
   picture?: string;
   passwordHash?: string; // Only for local users
-  provider: "local" | "google" | "ldap"; // Added LDAP provider
+  provider: "local" | "google" | "ldap" | "microsoft"; // Added Microsoft provider
   providerId?: string;
   department?: string; // Added for LDAP
   title?: string; // Added for LDAP

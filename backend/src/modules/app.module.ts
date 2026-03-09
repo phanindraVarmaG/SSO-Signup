@@ -2,9 +2,9 @@ import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { AuthModule } from "./auth.module";
 import { TestController } from "../controllers/test.controller";
+import { AppController } from "../controllers/app.controller";
+import { AppService } from "../services/app.service";
 import configuration from "../config/configuration";
-
-// This file is being moved to modules/app.module.ts
 
 @Module({
   imports: [
@@ -13,8 +13,8 @@ import configuration from "../config/configuration";
       load: [configuration],
     }),
     AuthModule,
- 
   ],
-  controllers: [TestController],
+  controllers: [AppController, TestController],
+  providers: [AppService],
 })
 export class AppModule {}

@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./dashboard.module.css";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+
 interface UserProfile {
   userId: string;
   email: string;
@@ -33,7 +35,7 @@ export default function DashboardPage() {
         return;
       }
 
-      const response = await fetch("http://localhost:4000/auth/profile", {
+      const response = await fetch(`${API_URL}/auth/profile`, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -65,7 +67,7 @@ export default function DashboardPage() {
     setData(null);
     try {
       const token = localStorage.getItem("access_token"); // Adjust if you store token elsewhere
-      const res = await fetch("http://localhost:4000/test/protected-data", {
+      const res = await fetch(`${API_URL}/test/protected-data`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const result = await res.json();
