@@ -1,5 +1,4 @@
 import { Controller, Get, Req, Res, UseGuards, Logger, InternalServerErrorException, BadRequestException } from '@nestjs/common';
-import { AuthService } from '../services/auth.service';
 import { Response, Request } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -12,9 +11,8 @@ export class GoogleDriveGmailController {
   private readonly logger = new Logger(GoogleDriveGmailController.name);
 
   constructor(
-    private authService: AuthService,
-    private configService: ConfigService,
-    private jwtService: JwtService,
+    private readonly configService: ConfigService,
+    private readonly jwtService: JwtService,
   ) {
     this.logger.log('GoogleDriveGmailController initialized');
   }

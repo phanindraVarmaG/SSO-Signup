@@ -5,9 +5,6 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 import { AuthService } from "../services/auth.service";
 import { AuthController } from "../controllers/auth.controller";
 import { JwtStrategy } from "../auth/strategies/jwt.strategy";
-import { GoogleStrategy } from "../auth/strategies/google.strategy";
-import { LdapAuthStrategy } from "../auth/strategies/ldap.strategy"; // 🆕 Added
-import { GoogleDriveGmailController } from "../controllers/google-drive-gmail.controller";
 
 @Module({
   imports: [
@@ -25,9 +22,8 @@ import { GoogleDriveGmailController } from "../controllers/google-drive-gmail.co
       inject: [ConfigService],
     }),
   ],
-  providers: [AuthService, JwtStrategy, GoogleStrategy, LdapAuthStrategy], // 🆕 Added LdapAuthStrategy
-  controllers: [AuthController, GoogleDriveGmailController],
+  providers: [AuthService, JwtStrategy],
+  controllers: [AuthController],
+  exports: [AuthService, JwtModule, PassportModule],
 })
 export class AuthModule {}
-
-// This file is being moved to modules/auth.module.ts
